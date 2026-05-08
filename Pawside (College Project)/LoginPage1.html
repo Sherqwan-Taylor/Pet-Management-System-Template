@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>PawsitiveCare | Sign in to Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp }                           from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check.js";
+    import { getAuth, signInWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence }
+                                                       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc }               from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { firebaseConfig }                          from './firebase-config.js';
+
+    const app  = initializeApp(firebaseConfig);
+
+    const auth = getAuth(app);
+    const db   = getFirestore(app);
+
+    // ── Make auth & db available to the non-module script below ──
+    window.__auth = auth;
+    window.__db   = db;
+    window.__signInWithEmailAndPassword  = signInWithEmailAndPassword;
+    window.__setPersistence              = setPersistence;
+    window.__browserLocalPersistence    = browserLocalPersistence;
+    window.__browserSessionPersistence  = browserSessionPersistence;
+    window.__doc                         = doc;
+    window.__getDoc                      = getDoc;
+
+    window.dispatchEvent(new Event('firebase-ready'));
+  </script>
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #eef2f0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1.5rem;
+      background: linear-gradient(135deg, #e2e6e4 0%, #cdd3cf 100%);
+    }
+
+    .login-container {
+      max-width: 1280px;
+      width: 100%;
+      background: #ffffff;
+      border-radius: 2.5rem;
+      box-shadow: 0 25px 40px -14px rgba(0,0,0,0.25), 0 8px 18px rgba(0,0,0,0.08);
+      overflow: hidden;
+      display: flex;
+      flex-wrap: wrap;
+      transition: all 0.2s ease;
+    }
+
+    /* RIGHT hero panel */
+    .hero-panel-right {
+      flex: 1.2;
+      background: linear-gradient(135deg, #2c2e31 0%, #1a1c1f 100%);
+      padding: 2.5rem 2rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      color: #f0f2f2;
+      position: relative;
+      overflow: hidden;
+      order: 2;
+    }
+
+    .hero-panel-right::before {
+      content: "🐾";
+      font-size: 22rem;
+      position: absolute;
+      bottom: -3rem;
+      left: -3rem;
+      opacity: 0.08;
+      pointer-events: none;
+      font-family: monospace;
+      transform: rotate(-5deg);
+    }
+
+    .brand-right {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 1.7rem;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      z-index: 2;
+      justify-content: flex-end;
+    }
+
+    .brand-right span {
+      background: #f4a261;
+      width: 42px; height: 42px;
+      display: inline-flex; align-items: left; justify-content: right;
+      border-radius: 40px; font-size: 1.8rem; color: #ffffff;
+      background: #cbd5cf;
+    }
+
+    .hero-text-right { margin-top: 3rem; z-index: 2; text-align: right; }
+
+    .hero-text-right h1 {
+      font-size: 2.6rem; line-height: 1.2; font-weight: 700;
+      margin-bottom: 1.2rem; max-width: 100%;
+    }
+
+    .hero-text-right p {
+      font-size: 1.05rem; line-height: 1.5;
+      opacity: 0.85; margin-bottom: 1.8rem;
+    }
+
+    .feature-list-right { list-style: none; margin-top: 1.5rem; text-align: right; }
+
+    .feature-list-right li {
+      display: flex; align-items: center; justify-content: flex-end;
+      gap: 0.75rem; margin-bottom: 1rem; font-size: 0.95rem; font-weight: 500;
+    }
+
+    .feature-list-right li::after {
+      content: "✓";
+      background: #7f8c8d; color: #1e1f22; font-weight: bold;
+      width: 22px; height: 22px; border-radius: 30px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 0.8rem; order: 1;
+    }
+
+    .feature-list-right li span { order: 0; }
+
+    .pet-quote-right {
+      margin-top: 2rem; font-style: italic;
+      border-right: 3px solid #9aa8a2; padding-right: 1rem;
+      font-size: 0.9rem; opacity: 0.85; text-align: right;
+    }
+
+    /* LEFT form panel */
+    .form-panel-left {
+      flex: 1; padding: 2.5rem 2rem 2.8rem;
+      background: #fbfcfb; order: 1;
+    }
+
+    .form-header { margin-bottom: 1.8rem; }
+
+    .form-header h2 {
+      font-size: 1.9rem; font-weight: 700;
+      color: #2b2f2c; letter-spacing: -0.3px;
+    }
+
+    .form-header p { color: #5e6b64; margin-top: 0.4rem; font-size: 0.9rem; }
+
+    /* Role switch */
+    .role-switch {
+      background: #eef2ef; border-radius: 3rem; padding: 0.3rem;
+      display: inline-flex; width: 100%; margin-bottom: 1.8rem;
+      gap: 0.5rem; border: 1px solid #dadfdc;
+    }
+
+    .role-option {
+      flex: 1; text-align: center; padding: 0.7rem 0.5rem;
+      border-radius: 2.5rem; font-weight: 600; font-size: 0.9rem;
+      cursor: pointer; transition: all 0.2s ease;
+      color: #3b4a42; background: transparent; letter-spacing: 0.2px;
+    }
+
+    .role-option.active {
+      background: #ffffff; color: #1f3d32;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      border: 0.5px solid #cbd9d2;
+    }
+
+    .role-option:first-child.active { background: #fff; color: #2c5a4a; }
+    .role-option:last-child.active  { background: #fff; color: #2c3e35; }
+
+    /* Form */
+    .login-form { display: flex; flex-direction: column; gap: 1.3rem; }
+
+    .input-group { display: flex; flex-direction: column; gap: 0.4rem; }
+
+    .input-group label {
+      font-weight: 600; font-size: 0.85rem;
+      color: #3c4a43; letter-spacing: 0.3px;
+    }
+
+    .input-group input {
+      padding: 0.9rem 1rem; border-radius: 1rem;
+      border: 1.5px solid #e0e6e2; background: #ffffff;
+      font-family: 'Inter', sans-serif; font-size: 0.95rem;
+      transition: 0.2s; outline: none;
+    }
+
+    .input-group input:focus {
+      border-color: #6f7e76;
+      box-shadow: 0 0 0 3px rgba(111,126,118,0.2);
+      background: white;
+    }
+
+    .checkbox-group {
+      flex-direction: row; align-items: center;
+      gap: 0.7rem; margin: 0.2rem 0;
+    }
+
+    .checkbox-group input { width: 18px; height: 18px; accent-color: #5c6e64; margin: 0; }
+
+    .checkbox-group label { font-weight: 500; font-size: 0.85rem; color: #4d5e55; }
+
+    .btn-login {
+      background: #4d5e55; color: white; border: none;
+      padding: 1rem; font-weight: 700; font-size: 1rem;
+      border-radius: 3rem; cursor: pointer; transition: 0.2s;
+      margin-top: 0.8rem; font-family: 'Inter', sans-serif;
+      letter-spacing: 0.3px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    }
+
+    .btn-login:hover:not(:disabled) {
+      background: #35473e; transform: scale(0.98);
+      box-shadow: 0 8px 18px rgba(77,94,85,0.3);
+    }
+
+    .btn-login:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    .signup-redirect {
+      text-align: center; margin-top: 1.8rem;
+      font-size: 0.85rem; color: #617067;
+    }
+
+    .signup-redirect a {
+      color: #4d5e55; font-weight: 600; text-decoration: none;
+      border-bottom: 1px dashed #bdcbc2; cursor: pointer;
+    }
+
+    .signup-redirect a:hover { color: #2f4d3e; }
+
+    .back-btn {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      font-size: 0.8rem; font-weight: 500; color: #7a8a80;
+      text-decoration: none; margin-bottom: 1.2rem;
+      transition: color 0.15s;
+    }
+
+    .back-btn:hover { color: #3c6b50; }
+
+    /* Admin note — shown when admin tab is active */
+    .admin-note {
+      display: none;
+      background: #f0f4f1; border: 1px solid #d0dcd4;
+      border-radius: 0.75rem; padding: 0.75rem 1rem;
+      font-size: 0.82rem; color: #4a5e52; line-height: 1.5;
+    }
+
+    .admin-note strong { color: #2c4a38; }
+
+    /* Toast */
+    .toast-msg {
+      position: fixed; bottom: 2rem; left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      color: #f5f7f5; padding: 0.8rem 1.8rem;
+      border-radius: 60px; font-weight: 500; font-size: 0.9rem;
+      z-index: 1000; opacity: 0; transition: all 0.25s ease;
+      pointer-events: none; backdrop-filter: blur(8px);
+      background: #2d2f2ee6;
+      box-shadow: 0 8px 18px rgba(0,0,0,0.2);
+    }
+
+    .toast-msg.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    .gray-badge {
+      display: inline-flex; background: #e4e9e6;
+      border-radius: 40px; padding: 0.2rem 0.9rem;
+      font-size: 0.7rem; font-weight: 600;
+      color: #3c5a4b; margin-bottom: 0.8rem;
+    }
+
+    @media (max-width: 780px) {
+      .login-container { flex-direction: column; }
+      .hero-panel-right { order: 1; text-align: center; }
+      .hero-text-right { text-align: center; }
+      .feature-list-right li { justify-content: center; }
+      .pet-quote-right {
+        text-align: center; border-right: none;
+        border-top: 2px solid #9aa8a2; padding-top: 0.8rem;
+      }
+      .brand-right { justify-content: center; }
+      .form-panel-left { order: 2; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="login-container">
+
+  <!-- RIGHT: hero panel -->
+  <div class="hero-panel-right">
+    <div class="brand-right">
+      <span>🐕</span>
+      <span>PawsitiveCare</span>
+    </div>
+    <div class="hero-text-right">
+      <div class="gray-badge">🐾 secure portal</div>
+      <h1>Welcome back, pet lover</h1>
+      <p>Access your dashboard, manage appointments, track health records & connect with your vet.</p>
+      <ul class="feature-list-right">
+        <li><span>24/7 support & care alerts</span></li>
+        <li><span>Personalized pet insights</span></li>
+        <li><span>Seamless booking & payments</span></li>
+        <li><span>Admin tools for professionals</span></li>
+      </ul>
+      <div class="pet-quote-right">
+        "Returning never felt so smooth — everything in one place." — Liam & 🐱
+      </div>
+    </div>
+  </div>
+
+  <!-- LEFT: login form -->
+  <div class="form-panel-left">
+    <a href="index.html" class="back-btn">← Back to Home</a>
+    <div class="form-header">
+      <h2>Sign in to your account</h2>
+      <p>Choose your role & access your personalized dashboard</p>
+    </div>
+
+    <!-- Role switch -->
+    <div class="role-switch" id="roleSwitchContainer">
+      <div class="role-option" data-role="client" id="clientRoleBtn">🐾 Pet Parent (Client)</div>
+      <div class="role-option" data-role="admin"  id="adminRoleBtn">📋 Admin / Staff</div>
+    </div>
+
+    <!-- Admin note (only visible in admin mode) -->
+    <div class="admin-note" id="adminNote">
+      🔐 <strong>Staff accounts only.</strong> Admin access is granted by the practice manager.
+      If you need an account, contact your administrator.
+    </div>
+
+    <form class="login-form" id="loginForm" novalidate>
+      <div class="input-group">
+        <label for="loginEmail" id="emailLabel">Email address</label>
+        <input type="email" id="loginEmail" name="email"
+               placeholder="hello@pawparent.com" autocomplete="email"/>
+      </div>
+
+      <div class="input-group">
+        <label for="loginPassword">Password</label>
+        <input type="password" id="loginPassword" name="password" placeholder="••••••••"/>
+      </div>
+
+      <div class="input-group checkbox-group">
+        <input type="checkbox" id="rememberCheckbox"/>
+        <label for="rememberCheckbox">Keep me signed in on this device</label>
+      </div>
+
+      <button type="submit" class="btn-login" id="loginBtn">🔐 Sign in →</button>
+
+      <!-- Only shown for client role -->
+      <div class="signup-redirect" id="signupRedirectRow">
+        Don't have an account? <a href="#" id="signupRedirectLink">Create free account</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="toastMsg" class="toast-msg">🔐 Logging you in...</div>
+
+<script>
+  // ── Wait for Firebase ────────────────────────────────────────
+  function initUI() {
+    const clientBtn        = document.getElementById('clientRoleBtn');
+    const adminBtn         = document.getElementById('adminRoleBtn');
+    const emailInput       = document.getElementById('loginEmail');
+    const passwordInput    = document.getElementById('loginPassword');
+    const loginForm        = document.getElementById('loginForm');
+    const loginBtnEl       = document.getElementById('loginBtn');
+    const toast            = document.getElementById('toastMsg');
+    const adminNote        = document.getElementById('adminNote');
+    const signupRedirectRow = document.getElementById('signupRedirectRow');
+    const signupRedirectLink = document.getElementById('signupRedirectLink');
+    const rememberCheck    = document.getElementById('rememberCheckbox');
+
+    let currentRole = 'client';
+
+    // ── Toast helper ─────────────────────────────────────────────
+    function showMessage(text, isError = false) {
+      toast.textContent = text;
+      toast.style.background = isError ? '#a13e2ee6' : '#2d2f2ee6';
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3400);
+    }
+
+    // ── Set active role UI ───────────────────────────────────────
+    function setActiveRole(role) {
+      currentRole = role;
+
+      if (role === 'client') {
+        clientBtn.classList.add('active');
+        adminBtn.classList.remove('active');
+        emailInput.placeholder   = 'hello@pawparent.com';
+        adminNote.style.display  = 'none';
+        signupRedirectRow.style.display = 'block';
+        loginBtnEl.innerHTML     = '🐾 Sign in →';
+      } else {
+        adminBtn.classList.add('active');
+        clientBtn.classList.remove('active');
+        emailInput.placeholder   = 'staff@pawsidecare.com';
+        adminNote.style.display  = 'block';
+        signupRedirectRow.style.display = 'none';
+        loginBtnEl.innerHTML     = '🔐 Staff Sign in →';
+      }
+
+      emailInput.style.borderColor    = '#e0e6e2';
+      passwordInput.style.borderColor = '#e0e6e2';
+    }
+
+    clientBtn.addEventListener('click', () => {
+      setActiveRole('client');
+      showMessage('Switched to Pet Parent mode 🐾');
+    });
+
+    adminBtn.addEventListener('click', () => {
+      setActiveRole('admin');
+      showMessage('Switched to Admin / Staff mode 🛠️');
+    });
+
+    // ── Form submit ──────────────────────────────────────────────
+    loginForm.addEventListener('submit', async e => {
+      e.preventDefault();
+
+      const email    = emailInput.value.trim();
+      const password = passwordInput.value.trim();
+
+      emailInput.style.borderColor    = '#e0e6e2';
+      passwordInput.style.borderColor = '#e0e6e2';
+
+      if (!email) {
+        emailInput.style.borderColor = '#c96a5c';
+        showMessage('Please enter your email address', true);
+        emailInput.focus(); return;
+      }
+
+      const emailPattern = /^[^\s@]+@([^\s@]+\.)+[^\s@]+$/;
+      if (!emailPattern.test(email)) {
+        emailInput.style.borderColor = '#c96a5c';
+        showMessage('Please enter a valid email address', true);
+        emailInput.focus(); return;
+      }
+
+      if (!password) {
+        passwordInput.style.borderColor = '#c96a5c';
+        showMessage('Please enter your password', true);
+        passwordInput.focus(); return;
+      }
+
+      // ── Admin login (Firebase) ─────────────────────────────────
+      if (currentRole === 'admin') {
+        loginBtnEl.disabled   = true;
+        loginBtnEl.innerHTML  = '🔄 Verifying...';
+
+        try {
+          const auth = window.__auth;
+
+          // Set persistence based on "Remember me"
+          const persistence = rememberCheck.checked
+            ? window.__browserLocalPersistence
+            : window.__browserSessionPersistence;
+          await window.__setPersistence(auth, persistence);
+
+          // Sign in with Firebase Auth
+          const userCredential = await window.__signInWithEmailAndPassword(auth, email, password);
+          const uid = userCredential.user.uid;
+
+          // Check Firestore admins collection for this UID
+          const adminDocRef = window.__doc(window.__db, 'admins', uid);
+          const adminDoc    = await window.__getDoc(adminDocRef);
+
+          if (!adminDoc.exists()) {
+            // Signed in but NOT an admin — sign them out and reject
+            await auth.signOut();
+            showMessage('⛔ Access denied. This account does not have staff privileges.', true);
+            emailInput.style.borderColor    = '#c96a5c';
+            passwordInput.style.borderColor = '#c96a5c';
+            return;
+          }
+
+          // ✅ Verified admin — store role & redirect
+          const adminData = adminDoc.data();
+          const role      = adminData.role || 'staff';
+
+          // Store role so admin.html can read and apply permissions
+          sessionStorage.setItem('pawside_role',  role);
+          sessionStorage.setItem('pawside_name',  adminData.name || email);
+          sessionStorage.setItem('pawside_email', email);
+
+          const roleLabel = role === 'admin' ? '🛡️ Admin' : '👤 Staff';
+          showMessage(`✅ Welcome, ${adminData.name || email}! (${roleLabel}) Redirecting...`);
+          loginBtnEl.innerHTML = '🎛️ Redirecting...';
+
+          setTimeout(() => {
+            window.location.href = 'admin.html';
+          }, 1200);
+
+        } catch (err) {
+          // Map Firebase error codes to friendly messages
+          let msg = 'Sign in failed. Please try again.';
+          if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+            msg = 'Incorrect email or password. Please try again.';
+          } else if (err.code === 'auth/too-many-requests') {
+            msg = 'Too many failed attempts. Please try again later.';
+          } else if (err.code === 'auth/network-request-failed') {
+            msg = 'Network error. Check your connection and try again.';
+          }
+          showMessage(msg, true);
+          emailInput.style.borderColor    = '#c96a5c';
+          passwordInput.style.borderColor = '#c96a5c';
+
+        } finally {
+          loginBtnEl.disabled  = false;
+          loginBtnEl.innerHTML = '🔐 Staff Sign in →';
+        }
+
+      } else {
+        // ── Pet Parent (Customer) login ───────────────────────────
+        loginBtnEl.disabled  = true;
+        loginBtnEl.innerHTML = '🐾 Signing in...';
+
+        try {
+          const auth = window.__auth;
+
+          // Set persistence based on "Remember me"
+          const persistence = rememberCheck.checked
+            ? window.__browserLocalPersistence
+            : window.__browserSessionPersistence;
+          await window.__setPersistence(auth, persistence);
+
+          // Sign in with Firebase Auth
+          const userCredential = await window.__signInWithEmailAndPassword(auth, email, password);
+          const uid = userCredential.user.uid;
+
+          // Verify they have a customer profile in Firestore
+          const customerDocRef = window.__doc(window.__db, 'customers', uid);
+          const customerDoc    = await window.__getDoc(customerDocRef);
+
+          if (!customerDoc.exists()) {
+            // Auth account exists but no customer profile — could be a staff account
+            await auth.signOut();
+            showMessage('⛔ No pet parent account found. Try the Admin / Staff tab, or sign up first.', true);
+            emailInput.style.borderColor    = '#c96a5c';
+            passwordInput.style.borderColor = '#c96a5c';
+            return;
+          }
+
+          // ✅ Verified customer — redirect to homepage
+          const customerData  = customerDoc.data();
+          const displayName   = customerData.firstName || email.split('@')[0];
+
+          showMessage(`✅ Welcome back, ${displayName}! Redirecting...`);
+          loginBtnEl.innerHTML = '🐾 Redirecting...';
+
+          setTimeout(() => {
+            window.location.href = 'index.html';
+          }, 1200);
+
+        } catch (err) {
+          let msg = 'Sign in failed. Please try again.';
+          if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+            msg = 'Incorrect email or password. Please try again.';
+          } else if (err.code === 'auth/too-many-requests') {
+            msg = 'Too many failed attempts. Please try again later.';
+          } else if (err.code === 'auth/network-request-failed') {
+            msg = 'Network error. Check your connection and try again.';
+          }
+          showMessage(msg, true);
+          emailInput.style.borderColor    = '#c96a5c';
+          passwordInput.style.borderColor = '#c96a5c';
+
+        } finally {
+          loginBtnEl.disabled  = false;
+          loginBtnEl.innerHTML = '🐾 Sign in →';
+        }
+      }
+    });
+
+    // ── Signup redirect (client only) ────────────────────────────
+    if (signupRedirectLink) {
+      signupRedirectLink.addEventListener('click', e => {
+        e.preventDefault();
+        window.location.href = 'SignUpPage.html';
+      });
+    }
+
+    // ── Clear errors on focus ────────────────────────────────────
+    emailInput.addEventListener('focus',    () => { emailInput.style.borderColor    = '#e0e6e2'; });
+    passwordInput.addEventListener('focus', () => { passwordInput.style.borderColor = '#e0e6e2'; });
+
+    // ── Default role ─────────────────────────────────────────────
+    setActiveRole('client');
+  }
+
+  if (window.__auth) initUI();
+  else window.addEventListener('firebase-ready', initUI, { once: true });
+</script>
+</body>
+</html>

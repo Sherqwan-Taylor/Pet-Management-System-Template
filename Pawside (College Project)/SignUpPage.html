@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Pawside Care | Join Our Pet Family</title>
+  <!-- Google Fonts & simple reset -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+  <script type="module">
+    import { initializeApp }                             from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword }   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { firebaseConfig }                            from './firebase-config.js';
+
+    const app  = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db   = getFirestore(app);
+
+    window.__auth            = auth;
+    window.__db              = db;
+    window.__createUser      = createUserWithEmailAndPassword;
+    window.__doc             = doc;
+    window.__setDoc          = setDoc;
+    window.__serverTimestamp = serverTimestamp;
+
+    window.dispatchEvent(new Event('firebase-ready'));
+  </script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(145deg, #f9f3e8 0%, #fff3e6 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1.5rem;
+    }
+
+    /* main card container */
+    .signup-container {
+      max-width: 1280px;
+      width: 100%;
+      background: #ffffff;
+      border-radius: 2.5rem;
+      box-shadow: 0 25px 45px -12px rgba(0, 0, 0, 0.2), 0 8px 18px rgba(0, 0, 0, 0.05);
+      overflow: hidden;
+      display: flex;
+      flex-wrap: wrap;
+      transition: all 0.2s ease;
+    }
+
+    /* left hero side */
+    .hero-panel {
+      flex: 1.2;
+      background: linear-gradient(125deg, #2d366a 0%, #201b4d 100%);
+      padding: 2.5rem 2rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      color: white;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-panel::before {
+      content: "🐾";
+      font-size: 22rem;
+      position: absolute;
+      bottom: -3rem;
+      right: -3rem;
+      opacity: 0.1;
+      pointer-events: none;
+      font-family: monospace;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 1.7rem;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      z-index: 2;
+    }
+
+    .brand span {
+      background: #f4a261;
+      width: 42px;
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 40px;
+      font-size: 1.8rem;
+    }
+
+    .hero-text {
+      margin-top: 3rem;
+      z-index: 2;
+    }
+
+    .hero-text h1 {
+      font-size: 2.6rem;
+      line-height: 1.2;
+      font-weight: 700;
+      margin-bottom: 1.2rem;
+      max-width: 90%;
+    }
+
+    .hero-text p {
+      font-size: 1.05rem;
+      line-height: 1.5;
+      opacity: 0.9;
+      margin-bottom: 1.8rem;
+      max-width: 85%;
+    }
+
+    .feature-list {
+      list-style: none;
+      margin-top: 1.5rem;
+    }
+
+    .feature-list li {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+      font-size: 0.95rem;
+      font-weight: 500;
+    }
+
+    .feature-list li::before {
+      content: "✓";
+      background: #f4a261;
+      color: #201b4d;
+      font-weight: bold;
+      width: 22px;
+      height: 22px;
+      border-radius: 30px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+    }
+
+    .pet-quote {
+      margin-top: 2rem;
+      font-style: italic;
+      border-left: 3px solid #f4a261;
+      padding-left: 1rem;
+      font-size: 0.9rem;
+      opacity: 0.85;
+    }
+
+    /* right side form */
+    .form-panel {
+      flex: 1;
+      padding: 2.5rem 2rem 2.8rem;
+      background: white;
+    }
+
+    .form-header {
+      margin-bottom: 1.8rem;
+    }
+
+    .form-header h2 {
+      font-size: 1.9rem;
+      font-weight: 700;
+      color: #1e1e2f;
+      letter-spacing: -0.3px;
+    }
+
+    .form-header p {
+      color: #5f6c66;
+      margin-top: 0.4rem;
+      font-size: 0.9rem;
+    }
+
+    .signup-form {
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .input-group label {
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: #2c2b3b;
+      letter-spacing: 0.3px;
+    }
+
+    .input-group input, 
+    .input-group select {
+      padding: 0.9rem 1rem;
+      border-radius: 1rem;
+      border: 1.5px solid #e2e8e6;
+      background: #fefcf9;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.95rem;
+      transition: 0.2s;
+      outline: none;
+    }
+
+    .input-group input:focus,
+    .input-group select:focus {
+      border-color: #332d6a;
+      box-shadow: 0 0 0 3px rgba(56, 45, 106, 0.2);
+      background: white;
+    }
+
+    .double-group {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .double-group .input-group {
+      flex: 1;
+    }
+
+    .checkbox-group {
+      flex-direction: row;
+      align-items: center;
+      gap: 0.7rem;
+      margin: 0.3rem 0;
+    }
+
+    .checkbox-group input {
+      width: 18px;
+      height: 18px;
+      accent-color: #332d6a;
+      margin: 0;
+    }
+
+    .checkbox-group label {
+      font-weight: 500;
+      font-size: 0.85rem;
+      color: #413e55;
+    }
+
+    .btn-signup {
+      background: #362d6a;
+      color: white;
+      border: none;
+      padding: 1rem;
+      font-weight: 700;
+      font-size: 1rem;
+      border-radius: 3rem;
+      cursor: pointer;
+      transition: 0.2s;
+      margin-top: 0.8rem;
+      font-family: 'Inter', sans-serif;
+      letter-spacing: 0.3px;
+      box-shadow: 0 5px 12px rgba(0,0,0,0.05);
+    }
+
+    .btn-signup:hover {
+      background: #1f2054;
+      transform: scale(0.98);
+      box-shadow: 0 8px 20px rgba(45, 106, 79, 0.3);
+    }
+
+    .login-redirect {
+      text-align: center;
+      margin-top: 1.8rem;
+      font-size: 0.85rem;
+      color: #5e6e66;
+    }
+
+    .login-redirect a {
+      color: #2e2d6a;
+      font-weight: 600;
+      text-decoration: none;
+      border-bottom: 1px dashed #b7cfc4;
+      cursor: pointer;
+    }
+
+    .login-redirect a:hover {
+      color: #f4a261;
+    }
+
+    /* success / error toasts */
+    .toast-msg {
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: #3903fc;
+      color: white;
+      padding: 0.8rem 1.8rem;
+      border-radius: 60px;
+      font-weight: 500;
+      font-size: 0.9rem;
+      z-index: 1000;
+      opacity: 0;
+      transition: all 0.25s ease;
+      pointer-events: none;
+      backdrop-filter: blur(8px);
+      background: #0024f3e6;
+      box-shadow: 0 8px 18px rgba(0,0,0,0.2);
+    }
+
+    .toast-msg.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    @media (max-width: 780px) {
+      .signup-container {
+        flex-direction: column;
+        border-radius: 2rem;
+      }
+      .hero-panel {
+        padding: 1.8rem;
+      }
+      .hero-text h1 {
+        font-size: 1.9rem;
+      }
+      .form-panel {
+        padding: 1.8rem;
+      }
+      .double-group {
+        flex-direction: column;
+        gap: 1rem;
+      }
+    }
+
+    /* pet accent */
+    .pet-badge {
+      display: inline-flex;
+      background: #fff0e0;
+      border-radius: 40px;
+      padding: 0.2rem 0.9rem;
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: #c46f2b;
+      margin-bottom: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+
+<div class="signup-container">
+  <!-- left side: branding & value proposition -->
+  <div class="hero-panel">
+    <div class="brand">
+      <span>🐕</span> 
+      <span>Pawside Care</span>
+    </div>
+    <div class="hero-text">
+      <div class="pet-badge">✨ trusted by 10k+ pet parents</div>
+      <h1>Give your furry friend the love they deserve</h1>
+      <p>Expert pet sitting, grooming, walking & health tips — all in one membership.</p>
+      <ul class="feature-list">
+        <li>24/7 vet chat access</li>
+        <li>Personalized care plans</li>
+        <li>Discounts on premium food & toys</li>
+        <li>Free first grooming session</li>
+      </ul>
+      <div class="pet-quote">
+        “My pup Max is happier than ever! The team truly cares.” — Sherqwan & 🐶
+      </div>
+    </div>
+  </div>
+
+  <!-- right side: sign up form -->
+  <div class="form-panel">
+    <div class="form-header">
+      <h2>Create an account</h2>
+      <p>Join our pet-loving community — it's free & takes 2 minutes</p>
+    </div>
+
+    <form class="signup-form" id="signupForm" novalidate>
+      <div class="double-group">
+        <div class="input-group">
+          <label for="firstName">First name *</label>
+          <input type="text" id="firstName" name="firstName" placeholder="e.g., Mountain" autocomplete="given-name">
+        </div>
+        <div class="input-group">
+          <label for="lastName">Last name *</label>
+          <input type="text" id="lastName" name="lastName" placeholder="e.g., View" autocomplete="family-name">
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label for="email">Email address *</label>
+        <input type="email" id="email" name="email" placeholder="hello@pawparent.com" autocomplete="email">
+      </div>
+
+      <div class="input-group">
+        <label for="phone">Phone number (optional)</label>
+        <input type="tel" id="phone" name="phone" placeholder="(876) 123-4567" autocomplete="tel">
+      </div>
+
+      <div class="double-group">
+        <div class="input-group">
+          <label for="password">Password *</label>
+          <input type="password" id="password" name="password" placeholder="Create a strong password">
+        </div>
+        <div class="input-group">
+          <label for="confirmPassword">Confirm password *</label>
+          <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Confirm your password">
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label for="petType">What pet do you have? (main)</label>
+        <select id="petType" name="petType">
+          <option value="dog">🐕 Dog</option>
+          <option value="cat">🐈 Cat</option>
+          <option value="both">🐕 + 🐈 Both</option>
+          <option value="other">🦜 Other (bird, rabbit, etc.)</option>
+          <option value="planning">💭 Planning to adopt</option>
+        </select>
+      </div>
+
+      <div class="input-group checkbox-group">
+        <input type="checkbox" id="offersConsent" name="offersConsent">
+        <label for="offersConsent">Send me cute pet care tips & exclusive offers (optional)</label>
+      </div>
+
+      <div class="input-group checkbox-group">
+        <input type="checkbox" id="termsCheckbox" name="termsCheckbox">
+        <label for="termsCheckbox">I agree to the <strong>Terms of Service</strong> and <strong>Privacy Policy</strong> *</label>
+      </div>
+
+      <button type="submit" class="btn-signup">🐾 Sign up for free →</button>
+      <div class="login-redirect">
+        Already have an account? <a href="#" id="loginRedirectLink">Log in here</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- dynamic toast message -->
+<div id="toastMsg" class="toast-msg">✨ Welcome to the pack!</div>
+
+<script>
+  (function() {
+    const form = document.getElementById('signupForm');
+    const toast = document.getElementById('toastMsg');
+
+    // Helper: show toast message
+    function showMessage(text, isError = false) {
+      toast.textContent = text;
+      toast.style.background = isError ? '#c44536e6' : '#1e2f2ae6';
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3200);
+    }
+
+    // realtime validation helpers
+    const firstName = document.getElementById('firstName');
+    const lastName = document.getElementById('lastName');
+    const email = document.getElementById('email');
+    const password = document.getElementById('password');
+    const confirmPwd = document.getElementById('confirmPassword');
+    const termsCheck = document.getElementById('termsCheckbox');
+
+    // Clear field specific visual error on input (basic border reset)
+    function clearFieldErrorStyle(field) {
+      if (field) field.style.borderColor = '#e2e8e6';
+    }
+    function setFieldErrorStyle(field) {
+      if (field) field.style.borderColor = '#e25c4a';
+    }
+
+    const allInputs = [firstName, lastName, email, password, confirmPwd];
+    allInputs.forEach(inp => {
+      if(inp) inp.addEventListener('input', () => clearFieldErrorStyle(inp));
+    });
+    if(termsCheck) termsCheck.addEventListener('change', () => {
+      if(termsCheck.checked) termsCheck.style.outline = 'none';
+    });
+
+    // main validation on submit
+    function validateSignup() {
+      let isValid = true;
+      
+      // reset styles
+      allInputs.forEach(inp => clearFieldErrorStyle(inp));
+      if(termsCheck) termsCheck.style.boxShadow = 'none';
+      
+      // First name
+      const firstVal = firstName.value.trim();
+      if (firstVal === '') {
+        setFieldErrorStyle(firstName);
+        showMessage('Please enter your first name 🐶', true);
+        firstName.focus();
+        return false;
+      }
+      if (firstVal.length < 2) {
+        setFieldErrorStyle(firstName);
+        showMessage('First name must be at least 2 characters', true);
+        firstName.focus();
+        return false;
+      }
+      
+      // Last name
+      const lastVal = lastName.value.trim();
+      if (lastVal === '') {
+        setFieldErrorStyle(lastName);
+        showMessage('Please enter your last name 🐱', true);
+        lastName.focus();
+        return false;
+      }
+      if (lastVal.length < 2) {
+        setFieldErrorStyle(lastName);
+        showMessage('Last name must be at least 2 characters', true);
+        lastName.focus();
+        return false;
+      }
+      
+      // Email
+      const emailVal = email.value.trim();
+      const emailPattern = /^[^\s@]+@([^\s@]+\.)+[^\s@]+$/;
+      if (emailVal === '') {
+        setFieldErrorStyle(email);
+        showMessage('Email address is required', true);
+        email.focus();
+        return false;
+      }
+      if (!emailPattern.test(emailVal)) {
+        setFieldErrorStyle(email);
+        showMessage('Please enter a valid email (e.g., name@example.com)', true);
+        email.focus();
+        return false;
+      }
+      
+      // Password
+      const pwdVal = password.value;
+      if (pwdVal === '') {
+        setFieldErrorStyle(password);
+        showMessage('Create a password to protect your account 🔒', true);
+        password.focus();
+        return false;
+      }
+      if (pwdVal.length < 6) {
+        setFieldErrorStyle(password);
+        showMessage('Password must be at least 6 characters', true);
+        password.focus();
+        return false;
+      }
+      // strong-ish: at least one letter & one number or symbol but we keep friendly
+      const hasLetter = /[A-Za-z]/.test(pwdVal);
+      const hasNumberOrSymbol = /[\d\W_]/.test(pwdVal);
+      if (!(hasLetter && hasNumberOrSymbol)) {
+        setFieldErrorStyle(password);
+        showMessage('Password should contain both letters and numbers/symbols for extra safety', true);
+        password.focus();
+        return false;
+      }
+      
+      // Confirm password
+      const confirmVal = confirmPwd.value;
+      if (confirmVal !== pwdVal) {
+        setFieldErrorStyle(confirmPwd);
+        showMessage('Passwords do not match! Please re-enter.', true);
+        confirmPwd.focus();
+        return false;
+      }
+      
+      // Terms checkbox
+      if (!termsCheck.checked) {
+        termsCheck.style.boxShadow = '0 0 0 2px #e25c4a';
+        showMessage('You must agree to the Terms & Privacy Policy to continue', true);
+        termsCheck.focus();
+        return false;
+      }
+      
+      return true;
+    }
+    
+    // submit handler
+    form.addEventListener('submit', async function(e) {
+      e.preventDefault();
+
+      if (!validateSignup()) return;
+
+      // Wait for Firebase to be ready (module may still be loading)
+      if (!window.__auth) {
+        await new Promise(resolve => window.addEventListener('firebase-ready', resolve, { once: true }));
+      }
+
+      const btn          = form.querySelector('.btn-signup');
+      const originalText = btn.innerHTML;
+      btn.disabled       = true;
+      btn.innerHTML      = '⏳ Creating your account…';
+
+      const firstNameVal = firstName.value.trim();
+      const lastNameVal  = lastName.value.trim();
+      const emailVal     = email.value.trim();
+      const pwdVal       = password.value;
+      const phoneVal     = document.getElementById('phone').value.trim();
+      const petOption    = document.getElementById('petType').value;
+      const offersConsent = document.getElementById('offersConsent').checked;
+
+      try {
+        // 1. Create Firebase Auth account
+        const userCredential = await window.__createUser(window.__auth, emailVal, pwdVal);
+        const uid = userCredential.user.uid;
+
+        // 2. Save customer profile to Firestore under "customers" collection
+        await window.__setDoc(window.__doc(window.__db, 'customers', uid), {
+          firstName:    firstNameVal,
+          lastName:     lastNameVal,
+          fullName:     `${firstNameVal} ${lastNameVal}`,
+          email:        emailVal,
+          phone:        phoneVal || null,
+          petType:      petOption,
+          offersConsent,
+          role:         'customer',
+          createdAt:    window.__serverTimestamp(),
+        });
+
+        // 3. Show success & redirect
+        let petEmoji = { dog:'🐕', cat:'🐈', both:'🐕🐈', other:'🦜🐇' }[petOption] || '🐾';
+        showMessage(`🎉 Welcome ${firstNameVal}! Your pet care journey starts now ${petEmoji}`);
+
+        setTimeout(() => {
+          window.location.href = 'index.html';
+        }, 1800);
+
+      } catch (err) {
+        let msg = 'Something went wrong. Please try again.';
+        if (err.code === 'auth/email-already-in-use') msg = '⚠️ An account with this email already exists. Try logging in instead.';
+        if (err.code === 'auth/invalid-email')        msg = '⚠️ Please enter a valid email address.';
+        if (err.code === 'auth/weak-password')        msg = '⚠️ Password is too weak. Use at least 6 characters.';
+        if (err.code === 'auth/network-request-failed') msg = '⚠️ Network error. Check your connection and try again.';
+        showMessage(msg, true);
+        btn.disabled  = false;
+        btn.innerHTML = originalText;
+      }
+    });
+    
+    // ***** UPDATED REDIRECT LOGIC FOR "LOG IN HERE" BUTTON *****
+    // This will redirect the user to LoginPage1.html when clicked
+    const loginRedirectLink = document.getElementById('loginRedirectLink');
+    if (loginRedirectLink) {
+      loginRedirectLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        // Redirect to the login page (ensure LoginPage1.html is in the same directory)
+        window.location.href = 'LoginPage1.html';
+      });
+    }
+    
+    // Optional: phone number formatting nice (just UX)
+    const phoneInput = document.getElementById('phone');
+    if (phoneInput) {
+      phoneInput.addEventListener('input', function(e) {
+        let val = e.target.value.replace(/\D/g, '');
+        if (val.length > 10) val = val.slice(0,10);
+        if (val.length >= 6) {
+          let match = val.match(/^(\d{3})(\d{3})(\d{0,4})$/);
+          if (match) {
+            let formatted = '';
+            if (match[2]) formatted = `(${match[1]}) ${match[2]}`;
+            if (match[3]) formatted += `-${match[3]}`;
+            else if (match[2]) formatted = `(${match[1]}) ${match[2]}`;
+            if (formatted) e.target.value = formatted;
+            else e.target.value = val;
+          } else {
+            if (val.length > 3 && val.length <= 6) {
+              e.target.value = `(${val.slice(0,3)}) ${val.slice(3)}`;
+            } else if (val.length <= 3) e.target.value = val;
+            else if (val.length > 6) {
+              e.target.value = `(${val.slice(0,3)}) ${val.slice(3,6)}-${val.slice(6,10)}`;
+            }
+          }
+        } else {
+          if (val.length > 3) e.target.value = `(${val.slice(0,3)}) ${val.slice(3)}`;
+          else e.target.value = val;
+        }
+      });
+    }
+    
+    // extra: Add little paw animation on focus? Not needed but nice
+    const fields = document.querySelectorAll('.input-group input, .input-group select');
+    fields.forEach(field => {
+      field.addEventListener('focus', () => {
+        field.parentElement.style.transition = '0.1s';
+      });
+    });
+  })();
+</script>
+</body>
+</html>

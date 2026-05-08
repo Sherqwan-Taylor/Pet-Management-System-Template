@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pawside — Create Admin Account</title>
+  <meta name="robots" content="noindex, nofollow"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet"/>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut }
+      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, doc, setDoc, deleteDoc, serverTimestamp, collection, getDocs }
+      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { firebaseConfig } from './firebase-config.js';
+
+    const app  = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db   = getFirestore(app);
+
+    window.__auth            = auth;
+    window.__db              = db;
+    window.__createUser      = createUserWithEmailAndPassword;
+    window.__signIn          = signInWithEmailAndPassword;
+    window.__signOut         = signOut;
+    window.__doc             = doc;
+    window.__setDoc          = setDoc;
+    window.__deleteDoc       = deleteDoc;
+    window.__serverTimestamp = serverTimestamp;
+    window.__collection      = collection;
+    window.__getDocs         = getDocs;
+
+    window.dispatchEvent(new Event('firebase-ready'));
+  </script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #1a1c1f 0%, #2c2e31 100%);
+      height: 100vh; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+      padding: 1rem 1.5rem;
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 1.5rem;
+      box-shadow: 0 25px 40px rgba(0,0,0,0.4);
+      width: 100%; max-width: 980px;
+      height: calc(100vh - 2rem);
+      max-height: 780px;
+      overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+
+    .card-header {
+      background: linear-gradient(135deg, #2c2e31, #1a1c1f);
+      padding: 1.5rem 2rem; color: #f0f2f2;
+    }
+
+    .card-header h1 { font-size: 1.2rem; font-weight: 700; }
+    .card-header p  { font-size: 0.78rem; opacity: 0.6; margin-top: 0.2rem; }
+
+    .warning-banner {
+      background: #fff8e6; border-bottom: 1px solid #f0d88a;
+      padding: 0.6rem 2rem;
+      font-size: 0.76rem; color: #7a5c00; font-weight: 500;
+    }
+
+    /* Two column layout */
+    .card-layout {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      flex: 1;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    /* LEFT: form */
+    .card-body {
+      padding: 1.8rem 2rem;
+      border-right: 1px solid #eef1ee;
+      overflow-y: auto;
+    }
+
+    /* RIGHT: staff panel */
+    .staff-panel {
+      display: flex;
+      flex-direction: column;
+      background: #f8faf8;
+    }
+
+    .staff-panel-header {
+      padding: 1.1rem 1.3rem;
+      border-bottom: 1px solid #e4ebe4;
+      display: flex; align-items: center; justify-content: space-between;
+      background: #f0f5f0;
+      position: sticky; top: 0;
+    }
+
+    .staff-panel-title {
+      font-size: 0.75rem; font-weight: 700;
+      letter-spacing: 0.08em; text-transform: uppercase; color: #3c5a42;
+    }
+
+    .staff-count-badge {
+      background: #4d5e55; color: #fff;
+      font-size: 0.7rem; font-weight: 700;
+      padding: 0.15rem 0.6rem; border-radius: 20px;
+      min-width: 26px; text-align: center;
+    }
+
+    .staff-panel-body {
+      flex: 1; overflow-y: auto;
+      padding: 0.9rem;
+      display: flex; flex-direction: column; gap: 0.55rem;
+    }
+
+    .staff-panel-body::-webkit-scrollbar { width: 5px; }
+    .staff-panel-body::-webkit-scrollbar-track { background: transparent; }
+    .staff-panel-body::-webkit-scrollbar-thumb { background: #c8d8c8; border-radius: 3px; }
+    .staff-panel-body::-webkit-scrollbar-thumb:hover { background: #a8c0a8; }
+
+    .card-body::-webkit-scrollbar { width: 5px; }
+    .card-body::-webkit-scrollbar-track { background: transparent; }
+    .card-body::-webkit-scrollbar-thumb { background: #dde6dd; border-radius: 3px; }
+
+    .staff-panel-empty {
+      font-size: 0.82rem; color: #9aaa9e;
+      font-style: italic; text-align: center;
+      padding-top: 2rem;
+    }
+
+    /* Staff account card in panel */
+    .admin-item {
+      background: #ffffff;
+      border: 1px solid #e0e8e2;
+      border-radius: 0.75rem;
+      padding: 0.7rem 0.85rem;
+      display: flex; align-items: center;
+      justify-content: space-between; gap: 0.5rem;
+      transition: box-shadow 0.15s;
+      animation: fadeIn 0.25s ease both;
+    }
+
+    .admin-item:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+
+    .admin-item-left { display: flex; align-items: center; gap: 0.6rem; }
+
+    .admin-avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: linear-gradient(135deg, #4d5e55, #2c3e35);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.82rem; color: #fff; font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .admin-item-info  { display: flex; flex-direction: column; gap: 0.1rem; }
+    .admin-item-name  { font-size: 0.82rem; font-weight: 600; color: #2c3a2e; }
+    .admin-item-email { font-size: 0.68rem; color: #6a7a6e; }
+
+    .admin-item-role {
+      font-size: 0.6rem; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; padding: 0.2rem 0.5rem; border-radius: 8px;
+      flex-shrink: 0;
+    }
+
+    .role-admin   { background: #e4ede6; color: #2c5a38; }
+    .role-manager { background: #e6eaf8; color: #2c3a7a; }
+    .role-staff   { background: #f4f0e6; color: #7a5a2c; }
+
+    .delete-staff-btn {
+      background: none; border: none; cursor: pointer;
+      color: #c8a8a8; font-size: 0.8rem; padding: 0.2rem 0.3rem;
+      border-radius: 4px; transition: all 0.15s; flex-shrink: 0;
+      line-height: 1;
+    }
+    .delete-staff-btn:hover { background: #fde8e8; color: #c04040; }
+
+    /* Form styles */
+    .field { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.9rem; }
+
+    .field label {
+      font-size: 0.72rem; font-weight: 600;
+      color: #3c4a43; letter-spacing: 0.3px; text-transform: uppercase;
+    }
+
+    .field input, .role-select {
+      padding: 0.7rem 0.9rem; border-radius: 0.75rem;
+      border: 1.5px solid #e0e6e2; background: #fbfcfb;
+      font-family: 'Inter', sans-serif; font-size: 0.9rem;
+      outline: none; transition: border-color 0.2s; width: 100%;
+      -webkit-appearance: none;
+    }
+
+    .field input:focus, .role-select:focus {
+      border-color: #4d5e55;
+      box-shadow: 0 0 0 3px rgba(77,94,85,0.12);
+    }
+
+    .field input::placeholder { color: #c4cec8; }
+
+    .btn-create {
+      width: 100%; padding: 0.8rem; background: #4d5e55; color: #fff;
+      font-family: 'Inter', sans-serif; font-size: 0.9rem; font-weight: 700;
+      border: none; border-radius: 0.75rem; cursor: pointer; transition: all 0.2s;
+      margin-top: 0.4rem;
+    }
+
+    .btn-create:hover:not(:disabled) { background: #35473e; }
+    .btn-create:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .btn-secondary {
+      width: 100%; padding: 0.65rem; background: #f0f2f0; color: #5a6a60;
+      font-family: 'Inter', sans-serif; font-size: 0.82rem; font-weight: 600;
+      border: 1px solid #dce4dc; border-radius: 0.75rem; cursor: pointer;
+      transition: all 0.2s; margin-top: 0.5rem;
+    }
+
+    .btn-secondary:hover { background: #e4ece4; }
+
+    .result-msg {
+      display: none; margin-top: 0.9rem; padding: 0.8rem 1rem;
+      border-radius: 0.75rem; font-size: 0.82rem; line-height: 1.5;
+    }
+
+    .result-msg.success { background: #edf5ed; border: 1px solid #b0d4b0; color: #2c5a2c; }
+    .result-msg.error   { background: #fdf0f0; border: 1px solid #f0b0b0; color: #8a2020; }
+
+    .divider { border: none; border-top: 1px solid #eef1ee; margin: 1.2rem 0; }
+
+    .section-title {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: #7a8a80; margin-bottom: 0.9rem;
+    }
+
+    .manager-banner {
+      background: #edf5ed; border: 1px solid #b0d4b0; color: #2c5a2c;
+      border-radius: 0.6rem; padding: 0.65rem 0.9rem;
+      font-size: 0.8rem; margin-bottom: 1rem; line-height: 1.4;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 680px) {
+      .card-layout { grid-template-columns: 1fr; }
+      .staff-panel { border-top: 1px solid #e4ebe4; }
+      .card-body   { border-right: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="card-header">
+    <h1>🛡️ Create Admin Account</h1>
+    <p>Pawside Care — Staff Management Tool</p>
+  </div>
+
+  <div class="warning-banner">
+    ⚠️ Keep this page private. Only share with practice managers.
+  </div>
+
+  <div class="card-layout">
+
+    <!-- LEFT: form -->
+    <div class="card-body">
+
+      <!-- Step 1: Manager login -->
+      <div id="manager-login-section">
+        <div class="section-title">Step 1 — Sign in as Manager</div>
+        <div class="field">
+          <label>Your Email</label>
+          <input id="m-email" type="email" placeholder="manager@pawsidecare.com"/>
+        </div>
+        <div class="field">
+          <label>Your Password</label>
+          <input id="m-password" type="password" placeholder="Your password"/>
+        </div>
+        <button class="btn-create" id="manager-login-btn">🔐 Sign In as Manager</button>
+        <div class="result-msg" id="login-result-msg"></div>
+      </div>
+
+      <!-- Step 2: Create new staff account -->
+      <div id="create-section" style="display:none">
+        <div class="manager-banner" id="manager-banner"></div>
+
+        <div class="section-title">Step 2 — New Staff Account</div>
+        <div class="field">
+          <label>Staff Full Name</label>
+          <input id="a-name" type="text" placeholder="e.g. Sarah Johnson"/>
+        </div>
+        <div class="field">
+          <label>Email Address</label>
+          <input id="a-email" type="email" placeholder="sarah@pawsidecare.com"/>
+        </div>
+        <div class="field">
+          <label>Temporary Password</label>
+          <input id="a-password" type="password" placeholder="Min 6 characters"/>
+        </div>
+        <div class="field">
+          <label>Role</label>
+          <select class="role-select" id="a-role">
+            <option value="admin">Admin</option>
+            <option value="manager">Manager</option>
+            <option value="staff">Staff</option>
+          </select>
+        </div>
+
+        <button class="btn-create" id="create-btn">+ Create Staff Account</button>
+        <div class="result-msg" id="result-msg"></div>
+
+        <hr class="divider"/>
+        <button class="btn-secondary" id="sign-out-btn">Sign Out</button>
+      </div>
+
+    </div>
+
+    <!-- RIGHT: staff panel -->
+    <div class="staff-panel">
+      <div class="staff-panel-header">
+        <span class="staff-panel-title">👥 Staff Accounts</span>
+        <span class="staff-count-badge" id="staff-count">—</span>
+      </div>
+      <div class="staff-panel-body" id="admins-list">
+        <p class="staff-panel-empty">Sign in to view staff accounts.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  function initTool() {
+    const managerLoginBtn = document.getElementById('manager-login-btn');
+    const createBtn       = document.getElementById('create-btn');
+    const signOutBtn      = document.getElementById('sign-out-btn');
+    const loginResultMsg  = document.getElementById('login-result-msg');
+    const resultMsg       = document.getElementById('result-msg');
+    const managerSection  = document.getElementById('manager-login-section');
+    const createSection   = document.getElementById('create-section');
+    const managerBanner   = document.getElementById('manager-banner');
+    const staffCount      = document.getElementById('staff-count');
+    const adminsList      = document.getElementById('admins-list');
+
+    // ── Step 1: Manager signs in ──────────────────────────────────
+    managerLoginBtn.addEventListener('click', async () => {
+      const email    = document.getElementById('m-email').value.trim();
+      const password = document.getElementById('m-password').value;
+
+      if (!email || !password) {
+        showMsg(loginResultMsg, 'Please enter your email and password.', false);
+        return;
+      }
+
+      managerLoginBtn.disabled    = true;
+      managerLoginBtn.textContent = 'Signing in…';
+
+      try {
+        const cred     = await window.__signIn(window.__auth, email, password);
+        const uid      = cred.user.uid;
+        const snapshot = await window.__getDocs(window.__collection(window.__db, 'admins'));
+        const adminData   = snapshot.docs.find(d => d.id === uid)?.data();
+        const isManager   = adminData?.role === 'manager';
+
+        if (!isManager) {
+          await window.__signOut(window.__auth);
+          showMsg(loginResultMsg, '⛔ Only manager accounts can access this page.', false);
+          return;
+        }
+        managerSection.style.display = 'none';
+        createSection.style.display  = 'block';
+        managerBanner.textContent    = `✅ Signed in as ${adminData?.name || email}`;
+
+        loadAdmins();
+
+      } catch (err) {
+        let msg = 'Sign in failed. Please check your credentials.';
+        if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') msg = 'Incorrect email or password.';
+        if (err.code === 'auth/user-not-found') msg = 'No account found with that email.';
+        showMsg(loginResultMsg, `❌ ${msg}`, false);
+      } finally {
+        managerLoginBtn.disabled    = false;
+        managerLoginBtn.textContent = '🔐 Sign In as Manager';
+      }
+    });
+
+    // ── Load staff panel ──────────────────────────────────────────
+    async function loadAdmins() {
+      adminsList.innerHTML = '<p class="staff-panel-empty">Loading…</p>';
+      try {
+        const snapshot = await window.__getDocs(window.__collection(window.__db, 'admins'));
+
+        staffCount.textContent = snapshot.size;
+
+        if (snapshot.empty) {
+          adminsList.innerHTML = '<p class="staff-panel-empty">No staff accounts yet.</p>';
+          return;
+        }
+
+        adminsList.innerHTML = snapshot.docs.map(d => {
+          const data    = d.data();
+          const initial = (data.name || '?')[0].toUpperCase();
+          const role    = data.role || 'staff';
+          return `
+            <div class="admin-item">
+              <div class="admin-item-left">
+                <div class="admin-avatar">${initial}</div>
+                <div class="admin-item-info">
+                  <span class="admin-item-name">${esc(data.name || '—')}</span>
+                  <span class="admin-item-email">${esc(data.email || '—')}</span>
+                </div>
+              </div>
+              <span class="admin-item-role role-${esc(role)}">${esc(role)}</span>
+              <button class="delete-staff-btn" data-uid="${d.id}" data-name="${esc(data.name || '')}" title="Delete account">🗑️</button>
+            </div>`;
+        }).join('');
+
+        // Attach delete listeners
+        adminsList.querySelectorAll('.delete-staff-btn').forEach(btn => {
+          btn.addEventListener('click', () => deleteAdmin(btn.dataset.uid, btn.dataset.name));
+        });
+
+      } catch (err) {
+        adminsList.innerHTML = `<p class="staff-panel-empty">Failed to load: ${err.message}</p>`;
+      }
+    }
+
+    // ── Step 2: Create new staff account ──────────────────────────
+    createBtn.addEventListener('click', async () => {
+      const name     = document.getElementById('a-name').value.trim();
+      const email    = document.getElementById('a-email').value.trim();
+      const password = document.getElementById('a-password').value;
+      const role     = document.getElementById('a-role').value;
+
+      resultMsg.style.display = 'none';
+
+      if (!name || !email || !password) {
+        showMsg(resultMsg, 'Please fill in all fields.', false); return;
+      }
+      if (password.length < 6) {
+        showMsg(resultMsg, 'Password must be at least 6 characters.', false); return;
+      }
+
+      createBtn.disabled    = true;
+      createBtn.textContent = 'Creating account…';
+
+      const managerEmail    = document.getElementById('m-email').value.trim();
+      const managerPassword = document.getElementById('m-password').value;
+
+      try {
+        // 1. Create the new Firebase Auth user
+        //    ⚠️ Briefly switches session to new user
+        const userCredential = await window.__createUser(window.__auth, email, password);
+        const newUid = userCredential.user.uid;
+
+        // 2. Sign back in as manager to restore write permission
+        await window.__signIn(window.__auth, managerEmail, managerPassword);
+
+        // 3. Write to Firestore as verified manager
+        await window.__setDoc(window.__doc(window.__db, 'admins', newUid), {
+          name, email, role,
+          createdAt: window.__serverTimestamp(),
+        });
+
+        showMsg(resultMsg,
+          `✅ Account created for <strong>${name}</strong> (${email}).<br/>
+           ⚠️ Ask them to change their password after first login.`, true);
+
+        document.getElementById('a-name').value     = '';
+        document.getElementById('a-email').value    = '';
+        document.getElementById('a-password').value = '';
+
+        loadAdmins();
+
+      } catch (err) {
+        let msg = err.message;
+        if (err.code === 'auth/email-already-in-use') msg = 'This email already has an account.';
+        if (err.code === 'auth/invalid-email')        msg = 'Please enter a valid email address.';
+        if (err.code === 'auth/weak-password')        msg = 'Password too weak. Use at least 6 characters.';
+        showMsg(resultMsg, `❌ ${msg}`, false);
+      } finally {
+        createBtn.disabled    = false;
+        createBtn.textContent = '+ Create Staff Account';
+      }
+    });
+
+    // ── Delete admin account ──────────────────────────────────────
+    async function deleteAdmin(uid, name) {
+      const currentUid = window.__auth.currentUser?.uid;
+      if (uid === currentUid) {
+        alert('You cannot delete your own account while signed in.');
+        return;
+      }
+      if (!confirm(`Delete the account for ${name || uid}?` /*This removes them from the staff list but does not delete their Firebase Auth account.*/)) return;
+
+      try {
+        await window.__deleteDoc(window.__doc(window.__db, 'admins', uid));
+        loadAdmins();
+      } catch (err) {
+        alert(`Failed to delete: ${err.message}`);
+      }
+    }
+
+    // ── Sign out ──────────────────────────────────────────────────
+    signOutBtn.addEventListener('click', async () => {
+      await window.__signOut(window.__auth);
+      managerSection.style.display = 'block';
+      createSection.style.display  = 'none';
+      adminsList.innerHTML         = '<p class="staff-panel-empty">Sign in to view staff accounts.</p>';
+      staffCount.textContent       = '—';
+      document.getElementById('m-email').value    = '';
+      document.getElementById('m-password').value = '';
+    });
+
+    // ── Helpers ───────────────────────────────────────────────────
+    function showMsg(el, html, success) {
+      el.innerHTML     = html;
+      el.className     = `result-msg ${success ? 'success' : 'error'}`;
+      el.style.display = 'block';
+    }
+
+    function esc(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+  }
+
+  if (window.__auth) initTool();
+  else window.addEventListener('firebase-ready', initTool, { once: true });
+</script>
+</body>
+</html>
